@@ -1,7 +1,7 @@
 // App.js
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import ProductList from "./Pages/ProductList";
-import ProductDetail from "./Pages/ProductDetail";
+import ProductList from "./page/ProductList";
+import ProductDetail from "./page/ProductDetail";
 import { useEffect } from "react";
 
 function App() {

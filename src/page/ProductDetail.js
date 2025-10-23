@@ -18,8 +18,10 @@ function ProductDetail() {
           throw new Error("Неверный ID товара");
         }
 
+        //https://my-telegram-app-production.up.railway.app/
+        //const response = await fetch(`http://localhost:5000/api/local/raw/nmInfo?nmId=${id}`);
         const response = await fetch(`http://localhost:5000/api/local/raw/nmInfo?nmId=${id}`);
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Ошибка сервера');
