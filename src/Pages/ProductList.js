@@ -1,11 +1,10 @@
-// pages/ProductList.jsx
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 function ProductList() {
   const [searchId, setSearchId] = useState("");
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Убрали loading и setLoading так как они не используются
 
   // Для демо - заглушка с товарами
   useEffect(() => {

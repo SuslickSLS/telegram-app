@@ -9,7 +9,7 @@ CORS(app)
 @app.route('/api/product/<int:product_id>')
 def get_product(product_id):
     try:
-        wb_url = f"https://card.wb.ru/cards/v1/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm={product_id}"
+        wb_url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm={product_id}"
         response = requests.get(wb_url, timeout=10)
         
         if response.status_code == 200:
