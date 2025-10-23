@@ -1,5 +1,4 @@
-# server/app.py
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 import os
@@ -8,6 +7,9 @@ import json
 app = Flask(__name__)
 CORS(app)
 
+# Обновленный URL вашего локального API с HTTPS и портом 8443
+LOCAL_API_URL = "https://192.168.171.248:8443"
+
 @app.route('/')
 def home():
     return jsonify({
@@ -15,12 +17,297 @@ def home():
         'endpoints': {
             'health': '/api/health',
             'product': '/api/product/<id>',
-            'debug': '/api/debug/wb'
+            'DenCool': '/api/DenCool/<id>',
+            'debug': '/api/debug/wb',
+            'local_raw': '/api/local/raw/nmInfo?nmId=224851397',
+            'local_health': '/api/local/health'
         }
     })
 
+@app.route('/api/local/raw/nmInfo', methods=['GET'])
+def local_raw_nm_info():
+    """
+    Получение всех данных с локального API как есть
+    """
+    try:
+        nm_id = request.args.get('nmId')
+        if not nm_id:
+            return jsonify({'error': 'nmId parameter is required'}), 400
+        
+        # Формируем URL к локальному API
+        target_url = f"{LOCAL_API_URL}/api/nmInfo?nmId={nm_id}"
+        
+        print(f"🔗 Запрос к локальному API: {target_url}")
+        
+        # Делаем запрос с отключенной проверкой SSL (для самоподписанных сертификатов)
+        response = requests.get(
+            target_url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+            },
+            timeout=10,
+            verify=False  # Отключаем проверку SSL сертификата
+        )
+        
+        print(f"📊 Статус ответа: {response.status_code}")
+        
+        if response.status_code != 200:
+            return jsonify({
+                'error': f'Локальный API вернул статус {response.status_code}',
+                'status_code': response.status_code,
+                'url': target_url
+            }), 502
+        
+        # Возвращаем данные как есть
+        raw_data = response.json()
+        
+        print(f"✅ Получены сырые данные с локального API")
+        
+        result = {
+            **raw_data,
+            '_metadata': {
+                'source': 'local_api',
+                'status': 'success',
+                'local_api_url': LOCAL_API_URL,
+                'nm_id_requested': nm_id
+            }
+        }
+        
+        return jsonify(result)
+            
+    except requests.exceptions.SSLError as e:
+        print(f"🔒 Ошибка SSL: {e}")
+        return jsonify({
+            'error': 'SSL ошибка при подключении к локальному API',
+            'solution': 'Сертификат не доверенный или самоподписанный',
+            'local_api_url': LOCAL_API_URL,
+            '_metadata': {
+                'source': 'error',
+                'status': 'ssl_error'
+            }
+        }), 503
+        
+    except requests.exceptions.ConnectionError as e:
+        print(f"🔌 Ошибка подключения: {e}")
+        return jsonify({
+            'error': 'Не удалось подключиться к локальному API',
+            'solution': 'Убедитесь что сервер 192.168.171.248:8443 запущен и доступен',
+            'local_api_url': LOCAL_API_URL,
+            '_metadata': {
+                'source': 'error',
+                'status': 'connection_failed'
+            }
+        }), 503
+        
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'error': 'Таймаут при запросе к локальному API',
+            'local_api_url': LOCAL_API_URL,
+            '_metadata': {
+                'source': 'error', 
+                'status': 'timeout'
+            }
+        }), 504
+        
+    except Exception as e:
+        print(f"💥 Ошибка: {e}")
+        return jsonify({
+            'error': f'Ошибка при запросе к локальному API: {str(e)}',
+            'local_api_url': LOCAL_API_URL,
+            '_metadata': {
+                'source': 'error',
+                'status': 'exception'
+            }
+        }), 500
+
+@app.route('/api/local/health', methods=['GET'])
+def local_health_check():
+    """Проверка доступности локального API"""
+    try:
+        # Отключаем проверку SSL для локального API
+        response = requests.get(
+            f"{LOCAL_API_URL}/api/health", 
+            timeout=5,
+            verify=False
+        )
+        
+        health_info = {
+            'local_api_status': 'available' if response.status_code == 200 else 'unavailable',
+            'status_code': response.status_code,
+            'local_api_url': LOCAL_API_URL,
+            'protocol': 'https'
+        }
+        
+        # Если доступен, пробуем получить информацию о nmInfo
+        if response.status_code == 200:
+            try:
+                nm_test = requests.get(
+                    f"{LOCAL_API_URL}/api/nmInfo?nmId=224851397", 
+                    timeout=3,
+                    verify=False
+                )
+                health_info['nm_info_endpoint'] = 'available' if nm_test.status_code == 200 else 'unavailable'
+                health_info['nm_info_status'] = nm_test.status_code
+            except Exception as e:
+                health_info['nm_info_endpoint'] = 'unavailable'
+                health_info['nm_info_error'] = str(e)
+        
+        return jsonify(health_info)
+        
+    except requests.exceptions.SSLError as e:
+        return jsonify({
+            'local_api_status': 'ssl_error',
+            'local_api_url': LOCAL_API_URL,
+            'error': f'SSL ошибка: {str(e)}',
+            'solution': 'Сервер использует самоподписанный сертификат'
+        }), 503
+        
+    except Exception as e:
+        return jsonify({
+            'local_api_status': 'unavailable',
+            'local_api_url': LOCAL_API_URL,
+            'error': str(e),
+            'solution': 'Проверьте что сервер запущен и доступен по сети'
+        }), 503
+
+@app.route('/api/local/debug', methods=['GET'])
+def local_debug():
+    """Детальная отладка подключения к локальному API"""
+    try:
+        nm_id = request.args.get('nmId', '224851397')
+        target_url = f"{LOCAL_API_URL}/api/nmInfo?nmId={nm_id}"
+        
+        debug_info = {
+            'target_url': target_url,
+            'local_api_url': LOCAL_API_URL,
+            'ssl_verify': False
+        }
+        
+        try:
+            # Пробуем без SSL проверки
+            response = requests.get(target_url, timeout=10, verify=False)
+            debug_info['response'] = {
+                'status_code': response.status_code,
+                'headers': dict(response.headers),
+                'content_preview': response.text[:500] if response.text else 'empty'
+            }
+            
+            if response.status_code == 200:
+                try:
+                    debug_info['response']['json_data'] = response.json()
+                except:
+                    debug_info['response']['json_error'] = 'Cannot parse JSON'
+                    
+        except requests.exceptions.SSLError as e:
+            debug_info['ssl_error'] = str(e)
+        except requests.exceptions.ConnectionError as e:
+            debug_info['connection_error'] = str(e)
+        except Exception as e:
+            debug_info['other_error'] = str(e)
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': f'Debug error: {str(e)}'}), 500
+
 @app.route('/api/product/<int:product_id>', methods=['GET'])
 def get_product(product_id):
+    try:
+        print(f"🔍 Запрос товара {product_id}")
+        
+        # Основной URL WB API
+        wb_url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm={product_id}"
+        
+        print(f"🔄 Пробуем URL: {wb_url}")
+        
+        # Делаем запрос с подробными заголовками
+        response = requests.get(
+            wb_url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Referer': 'https://www.wildberries.ru/',
+                'Origin': 'https://www.wildberries.ru',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-site',
+            },
+            timeout=10
+        )
+        
+        print(f"📊 Статус ответа: {response.status_code}")
+        print(f"📋 Заголовки ответа: {dict(response.headers)}")
+        
+        if response.status_code != 200:
+            return jsonify({
+                'error': f'WB API вернул статус {response.status_code}',
+                'status_code': response.status_code,
+                'product_id': product_id
+            }), 502
+            
+        # Пробуем распарсить JSON
+        try:
+            data = response.json()
+            print(f"📦 JSON получен успешно")
+        except json.JSONDecodeError as e:
+            print(f"❌ Ошибка парсинга JSON: {e}")
+            print(f"📄 Содержимое ответа: {response.text[:200]}")
+            return jsonify({
+                'error': 'Неверный формат ответа от WB API',
+                'response_preview': response.text[:200]
+            }), 502
+        
+        # Проверяем структуру ответа
+        if not data:
+            return jsonify({'error': 'Пустой ответ от WB API'}), 404
+            
+        # Пробуем разные возможные структуры данных
+        product_data = None
+        if data.get('data', {}).get('products'):
+            product_data = data['data']['products'][0]
+        elif data.get('products'):
+            product_data = data['products'][0]
+        else:
+            print(f"📋 Структура данных: {json.dumps(data, ensure_ascii=False)[:500]}")
+            return jsonify({
+                'error': 'Неизвестная структура данных от WB API',
+                'data_structure': list(data.keys()) if data else []
+            }), 502
+        
+        if not product_data:
+            return jsonify({'error': 'Товар не найден в ответе'}), 404
+        
+        # Форматируем успешный ответ
+        result = {
+            'id': product_data.get('id', product_id),
+            'name': product_data.get('name', 'Название не указано'),
+            'brand': product_data.get('brand', 'Бренд не указан'),
+            'price': product_data.get('salePriceU', 0),
+            'rating': product_data.get('rating', 0),
+            'feedbacks': product_data.get('feedbacks', 0),
+            'quantity': product_data.get('totalQuantity', 0),
+        }
+        
+        print(f"✅ Успешно получен товар: {result['name']}")
+        return jsonify(result)
+        
+    except requests.exceptions.Timeout:
+        print("⏰ Таймаут при запросе к WB API")
+        return jsonify({'error': 'Таймаут при запросе к WB API'}), 504
+    except requests.exceptions.ConnectionError:
+        print("🔌 Ошибка подключения к WB API")
+        return jsonify({'error': 'Ошибка подключения к WB API'}), 503
+    except requests.exceptions.RequestException as e:
+        print(f"🌐 Ошибка сети: {e}")
+        return jsonify({'error': f'Ошибка сети: {str(e)}'}), 503
+    except Exception as e:
+        print(f"💥 Неожиданная ошибка: {e}")
+        return jsonify({'error': f'Внутренняя ошибка: {str(e)}'}), 500
+
+
     try:
         print(f"🔍 Запрос товара {product_id}")
         
@@ -162,4 +449,5 @@ def health_check():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Запуск сервера на порту {port}")
+    print(f"🔗 Локальный API: {LOCAL_API_URL}")
     app.run(host='0.0.0.0', port=port, debug=True)
