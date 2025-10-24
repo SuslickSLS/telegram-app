@@ -21,7 +21,7 @@ function ProductDetail() {
           throw new Error("Неверный ID товара");
         }
 
-        const response = await fetch(`https://my-telegram-app-production.up.railway.app/api/local/raw/nmInfo?nmId=${id}`);
+        const response = await fetch(`my-telegram-app-production.up.railway.app/api/local/raw/nmInfo?nmId=${id}`);
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -57,7 +57,7 @@ function ProductDetail() {
   const fetchWbProduct = async () => {
     try {
       setWbLoading(true);
-      const response = await fetch(`https://my-telegram-app-production.up.railway.app/api/wb/product?nmId=${id}`);
+      const response = await fetch(`my-telegram-app-production.up.railway.app/api/wb/product?nmId=${id}`);
       
       if (!response.ok) {
         throw new Error('Ошибка загрузки данных с Wildberries');
