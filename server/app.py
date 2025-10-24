@@ -3,9 +3,171 @@ from flask_cors import CORS
 import requests
 import os
 import json
+import hmac
+import hashlib
+from datetime import datetime, timedelta
+
 
 app = Flask(__name__)
 CORS(app)
+
+ALLOWED_USERS = {
+    5429222882: {"username": "admin", "name": "Администратор", "role": "admin"},
+    987654321: {"username": "manager", "name": "Менеджер", "role": "manager"},
+}
+
+access_cache = {}
+
+@app.route('/api/check-access', methods=['POST'])
+def check_access():
+    """
+    Проверка доступа пользователя к Mini App
+    """
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        init_data = data.get('initData')
+        
+        if not user_id:
+            return jsonify({'access': False, 'error': 'No user ID'}), 400
+        
+        # Проверка кеша (5 минут)
+        cache_key = f"user_{user_id}"
+        if cache_key in access_cache:
+            cached_data = access_cache[cache_key]
+            if datetime.now() - cached_data['timestamp'] < timedelta(minutes=5):
+                return jsonify({'access': cached_data['access'], 'user': cached_data['user']})
+        
+        # Проверка подписи Telegram (опционально, но рекомендуется)
+        if not verify_telegram_init_data(init_data):
+            return jsonify({'access': False, 'error': 'Invalid signature'}), 403
+        
+        # Проверка в белом списке
+        user_info = ALLOWED_USERS.get(user_id)
+        
+        if user_info:
+            # Сохраняем в кеш
+            access_cache[cache_key] = {
+                'access': True,
+                'user': user_info,
+                'timestamp': datetime.now()
+            }
+            
+            return jsonify({
+                'access': True,
+                'user': user_info,
+                'message': f'Добро пожаловать, {user_info["name"]}!'
+            })
+        else:
+            # Логируем попытку доступа
+            print(f"Попытка доступа от неподтвержденного пользователя: {user_id}")
+            
+            # Сохраняем в кеш
+            access_cache[cache_key] = {
+                'access': False,
+                'user': None,
+                'timestamp': datetime.now()
+            }
+            
+            return jsonify({
+                'access': False,
+                'error': 'User not in whitelist'
+            }), 403
+            
+    except Exception as e:
+        print(f"Ошибка проверки доступа: {e}")
+        return jsonify({'access': False, 'error': 'Internal server error'}), 500
+
+def verify_telegram_init_data(init_data):
+    """
+    Проверка подписи Telegram Web App
+    """
+    try:
+        # Ваш bot token из @BotFather
+        bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        
+        if not bot_token or not init_data:
+            return True  # Пропускаем проверку если нет токена
+        
+        # Разбираем initData
+        params = {}
+        for pair in init_data.split('&'):
+            key, value = pair.split('=')
+            params[key] = value
+        
+        # Получаем подпись
+        received_hash = params.get('hash')
+        if not received_hash:
+            return False
+        
+        # Удаляем hash из параметров
+        del params['hash']
+        
+        # Сортируем параметры
+        data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(params.items())])
+        
+        # Вычисляем секретный ключ
+        secret_key = hmac.new(
+            key=b"WebAppData",
+            msg=bot_token.encode(),
+            digestmod=hashlib.sha256
+        ).digest()
+        
+        # Вычисляем хеш
+        computed_hash = hmac.new(
+            key=secret_key,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
+        ).hexdigest()
+        
+        return computed_hash == received_hash
+        
+    except Exception as e:
+        print(f"Ошибка проверки подписи: {e}")
+        return False
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_allowed_users():
+    """
+    Получить список разрешенных пользователей (для админки)
+    """
+    return jsonify({
+        'users': ALLOWED_USERS,
+        'total': len(ALLOWED_USERS)
+    })
+
+@app.route('/api/admin/add-user', methods=['POST'])
+def add_user():
+    """
+    Добавить пользователя в белый список
+    """
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        username = data.get('username')
+        name = data.get('name')
+        role = data.get('role', 'user')
+        
+        if not user_id:
+            return jsonify({'error': 'User ID required'}), 400
+        
+        ALLOWED_USERS[user_id] = {
+            'username': username,
+            'name': name,
+            'role': role,
+            'added_at': datetime.now().isoformat()
+        }
+        
+        # Очищаем кеш для этого пользователя
+        cache_key = f"user_{user_id}"
+        access_cache.pop(cache_key, None)
+        
+        return jsonify({'success': True, 'user': ALLOWED_USERS[user_id]})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
 # Обновленный URL вашего локального API с HTTPS и портом 8443
 LOCAL_API_URL = "https://192.168.171.248:8443"
