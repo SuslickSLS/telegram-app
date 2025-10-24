@@ -1,0 +1,170 @@
+/* styles/ProductDetail.module.css */
+.container {
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.tabContainer {
+  display: flex;
+  border-bottom: 1px solid var(--tg-theme-hint-color, #dddddd);
+  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
+}
+
+.tabButton {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tabButtonActive {
+  background-color: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.tabButtonInactive {
+  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.card {
+  background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.sectionTitle {
+  margin-bottom: 15px;
+  color: var(--tg-theme-text-color, #000000);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin-bottom: 10px;
+  color: var(--tg-theme-text-color, #000000);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.barcode {
+  padding: 4px 8px;
+  background-color: var(--tg-theme-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000000);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.warehouseItem {
+  padding: 12px;
+  border: 1px solid var(--tg-theme-hint-color, #eeeeee);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.warehouseItemEven {
+  background-color: var(--tg-theme-bg-color, #f9f9f9);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.warehouseItemOdd {
+  background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.duplicateItem {
+  padding: 8px;
+  background-color: var(--tg-theme-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000000);
+  border-radius: 4px;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.primaryButton {
+  padding: 16px;
+  width: 100%;
+  background-color: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.secondaryButton {
+  padding: 12px;
+  width: 100%;
+  background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000000);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.errorText {
+  color: var(--tg-theme-destructive-text-color, #ff0000);
+  text-align: center;
+  padding: 20px;
+}
+
+.loadingText {
+  color: var(--tg-theme-text-color, #000000);
+  text-align: center;
+}
+
+/* Стили для InfoRow */
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--tg-theme-hint-color, #f0f0f0);
+}
+
+.infoRowLabel {
+  color: var(--tg-theme-hint-color, #666666);
+}
+
+.infoRowValue {
+  font-weight: 500;
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.gridContainer {
+  display: grid;
+  gap: 8px;
+}
+
+.gridTwoColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.warehouseList {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.barcodeContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loadingContainer {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.errorContainer {
+  padding: 20px;
+}

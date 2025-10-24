@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import styles from './styles/ProductDetail.module.css';
 
 function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [wbProduct, setWbProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [wbLoading, setWbLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("main");
+  const [activeTab, setActiveTab] = useState("wb"); // По умолчанию показываем WB вкладку
 
   useEffect(() => {
     async function fetchProduct() {
@@ -18,8 +21,6 @@ function ProductDetail() {
           throw new Error("Неверный ID товара");
         }
 
-        //https://my-telegram-app-production.up.railway.app/
-        //const response = await fetch(`http://localhost:5000/api/local/raw/nmInfo?nmId=${id}`);
         const response = await fetch(`http://localhost:5000/api/local/raw/nmInfo?nmId=${id}`);
 
         if (!response.ok) {
@@ -31,17 +32,50 @@ function ProductDetail() {
         console.log("Данные от локального API:", apiData);
 
         const productData = apiData.value || apiData;
-        setProduct(productData);
+        
+        // Если данные пустые или нет основных полей, считаем что товар не найден
+        if (!productData || (!productData.nmId && !productData.price)) {
+          console.log("Локальные данные не найдены, но продолжаем работу");
+          setProduct(null);
+        } else {
+          setProduct(productData);
+        }
 
       } catch (err) {
-        console.error("Ошибка:", err);
-        setError(err.message || "Не удалось загрузить товар");
+        console.error("Ошибка загрузки локальных данных:", err);
+        setProduct(null); // Сбрасываем локальные данные
+        // Не устанавливаем ошибку, чтобы можно было показать WB данные
       } finally {
         setLoading(false);
       }
     }
 
     fetchProduct();
+  }, [id]);
+
+  // Функция для загрузки WB товара
+  const fetchWbProduct = async () => {
+    try {
+      setWbLoading(true);
+      const response = await fetch(`http://localhost:5000/api/wb/product?nmId=${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки данных с Wildberries');
+      }
+
+      const data = await response.json();
+      setWbProduct(data.product);
+    } catch (err) {
+      console.error("Ошибка загрузки WB товара:", err);
+      setWbProduct(null);
+    } finally {
+      setWbLoading(false);
+    }
+  };
+
+  // Загружаем WB товар при монтировании компонента
+  useEffect(() => {
+    fetchWbProduct();
   }, [id]);
 
   const formatNumber = (num) => {
@@ -51,125 +85,39 @@ function ProductDetail() {
     return "0";
   };
 
-  // Стили с использованием Telegram CSS переменных
-  const styles = {
-    container: {
-      padding: "0",
-      minHeight: "100vh",
-      backgroundColor: "var(--tg-theme-bg-color, #ffffff)",
-      color: "var(--tg-theme-text-color, #000000)"
-    },
-    tabContainer: {
-      display: "flex", 
-      borderBottom: "1px solid var(--tg-theme-hint-color, #dddddd)",
-      backgroundColor: "var(--tg-theme-secondary-bg-color, #f8f9fa)"
-    },
-    tabButton: (isActive) => ({
-      flex: 1,
-      padding: "12px",
-      border: "none",
-      backgroundColor: isActive 
-        ? "var(--tg-theme-button-color, #2481cc)" 
-        : "var(--tg-theme-secondary-bg-color, #f8f9fa)",
-      color: isActive 
-        ? "var(--tg-theme-button-text-color, #ffffff)" 
-        : "var(--tg-theme-text-color, #000000)",
-      cursor: "pointer",
-      fontSize: "14px"
-    }),
-    card: {
-      backgroundColor: "var(--tg-theme-secondary-bg-color, #ffffff)",
-      padding: "15px",
-      borderRadius: "10px",
-      marginBottom: "15px",
-      border: "1px solid var(--tg-theme-hint-color, #e0e0e0)"
-    },
-    sectionTitle: {
-      marginBottom: "15px",
-      color: "var(--tg-theme-text-color, #000000)",
-      fontSize: "18px",
-      fontWeight: "600"
-    },
-    subtitle: {
-      marginBottom: "10px",
-      color: "var(--tg-theme-text-color, #000000)",
-      fontSize: "16px",
-      fontWeight: "500"
-    },
-    barcode: {
-      padding: "4px 8px",
-      backgroundColor: "var(--tg-theme-bg-color, #f0f0f0)",
-      color: "var(--tg-theme-text-color, #000000)",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontFamily: "monospace"
-    },
-    warehouseItem: (index) => ({
-      padding: "12px",
-      border: "1px solid var(--tg-theme-hint-color, #eeeeee)",
-      borderRadius: "8px",
-      marginBottom: "10px",
-      backgroundColor: index % 2 === 0 
-        ? "var(--tg-theme-bg-color, #f9f9f9)" 
-        : "var(--tg-theme-secondary-bg-color, #ffffff)",
-      color: "var(--tg-theme-text-color, #000000)"
-    }),
-    duplicateItem: {
-      padding: "8px",
-      backgroundColor: "var(--tg-theme-bg-color, #f0f0f0)",
-      color: "var(--tg-theme-text-color, #000000)",
-      borderRadius: "4px",
-      marginBottom: "5px",
-      fontSize: "14px"
-    },
-    primaryButton: {
-      padding: "16px",
-      width: "100%",
-      backgroundColor: "var(--tg-theme-button-color, #2481cc)",
-      color: "var(--tg-theme-button-text-color, #ffffff)",
-      border: "none",
-      borderRadius: "10px",
-      cursor: "pointer",
-      fontSize: "18px",
-      fontWeight: "bold",
-      marginBottom: "15px"
-    },
-    secondaryButton: {
-      padding: "12px",
-      width: "100%",
-      backgroundColor: "var(--tg-theme-secondary-bg-color, #f0f0f0)",
-      color: "var(--tg-theme-text-color, #000000)",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer"
-    },
-    errorText: {
-      color: "var(--tg-theme-destructive-text-color, #ff0000)",
-      textAlign: "center",
-      padding: "20px"
-    },
-    loadingText: {
-      color: "var(--tg-theme-text-color, #000000)",
-      textAlign: "center"
+  const formatPrice = (price) => {
+    if (price !== undefined && price !== null) {
+      return price.toLocaleString();
     }
+    return "0";
   };
 
   if (loading) {
     return (
-      <div style={{ padding: "40px 20px", textAlign: "center" }}>
-        <p style={styles.loadingText}>🔄 Загружаем информацию о товаре...</p>
+      <div className={styles.loadingContainer}>
+        <p className={styles.loadingText}>🔄 Загружаем информацию о товаре...</p>
       </div>
     );
   }
 
-  if (error) {
+  // Если нет вообще никаких данных (ни локальных, ни WB)
+  if (!product && !wbProduct && !wbLoading) {
     return (
-      <div style={{ padding: "20px" }}>
-        <p style={styles.errorText}>
-          ❌ {error}
+      <div className={styles.errorContainer}>
+        <p className={styles.errorText}>
+          ❌ Товар с ID {id} не найден
         </p>
-        <Link to="/" style={{ display: "block", textAlign: "center", marginTop: "20px" }}>
-          <button style={styles.secondaryButton}>
+        <div className={styles.errorSuggestions}>
+          <p>Возможные причины:</p>
+          <ul>
+            <li>Товар не существует в локальной базе данных</li>
+            <li>Товар не найден на Wildberries</li>
+            <li>Проверьте правильность ID товара</li>
+            <li>Сервер может быть временно недоступен</li>
+          </ul>
+        </div>
+        <Link to="/" className={styles.backLink}>
+          <button className={styles.secondaryButton}>
             ← Назад к поиску
           </button>
         </Link>
@@ -178,38 +126,53 @@ function ProductDetail() {
   }
 
   return (
-    <div style={styles.container}>
-      {/* Табы для переключения между разделами */}
-      <div style={styles.tabContainer}>
-        <button
-          onClick={() => setActiveTab("main")}
-          style={styles.tabButton(activeTab === "main")}
-        >
-          Основное
-        </button>
-        <button
-          onClick={() => setActiveTab("stocks")}
-          style={styles.tabButton(activeTab === "stocks")}
-        >
-          Склады
-        </button>
-        <button
-          onClick={() => setActiveTab("financial")}
-          style={styles.tabButton(activeTab === "financial")}
-        >
-          Финансы
-        </button>
+    <div className={styles.container}>
+      {/* Табы для переключения между разделами - показываем вкладки в зависимости от доступных данных */}
+      <div className={styles.tabContainer}>
+        {/* Вкладка WB всегда доступна если есть WB данные */}
+        {(wbProduct || wbLoading) && (
+          <button
+            onClick={() => setActiveTab("wb")}
+            className={`${styles.tabButton} ${activeTab === "wb" ? styles.tabButtonActive : styles.tabButtonInactive}`}
+          >
+            WB Инфо
+          </button>
+        )}
+        
+        {/* Локальные вкладки показываем только если есть локальные данные */}
+        {product && (
+          <>
+            <button
+              onClick={() => setActiveTab("main")}
+              className={`${styles.tabButton} ${activeTab === "main" ? styles.tabButtonActive : styles.tabButtonInactive}`}
+            >
+              Основное
+            </button>
+            <button
+              onClick={() => setActiveTab("stocks")}
+              className={`${styles.tabButton} ${activeTab === "stocks" ? styles.tabButtonActive : styles.tabButtonInactive}`}
+            >
+              Склады
+            </button>
+            <button
+              onClick={() => setActiveTab("financial")}
+              className={`${styles.tabButton} ${activeTab === "financial" ? styles.tabButtonActive : styles.tabButtonInactive}`}
+            >
+              Финансы
+            </button>
+          </>
+        )}
       </div>
 
-      <div style={{ padding: "20px" }}>
+      <div className={styles.content}>
         
-        {/* Основная информация */}
-        {activeTab === "main" && (
+        {/* Основная информация (только если есть локальные данные) */}
+        {activeTab === "main" && product && (
           <div>
-            <div style={styles.card}>
-              <h2 style={styles.sectionTitle}>Основная информация</h2>
+            <div className={styles.card}>
+              <h2 className={styles.sectionTitle}>Основная информация</h2>
               
-              <div style={{ display: "grid", gap: "8px" }}>
+              <div className={styles.gridContainer}>
                 <InfoRow label="Артикул (nmId)" value={product.nmId} />
                 <InfoRow label="Цена" value={`${product.price} ₽`} />
                 <InfoRow label="Цена со скидкой" value={`${product.discountedPrice} ₽`} />
@@ -223,11 +186,11 @@ function ProductDetail() {
 
             {/* Штрихкоды */}
             {product.barcode && product.barcode.length > 0 && (
-              <div style={styles.card}>
-                <h3 style={styles.subtitle}>Штрихкоды</h3>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <div className={styles.card}>
+                <h3 className={styles.subtitle}>Штрихкоды</h3>
+                <div className={styles.barcodeContainer}>
                   {product.barcode.map((barcode, index) => (
-                    <span key={index} style={styles.barcode}>
+                    <span key={index} className={styles.barcode}>
                       {barcode}
                     </span>
                   ))}
@@ -236,9 +199,9 @@ function ProductDetail() {
             )}
 
             {/* Остатки */}
-            <div style={styles.card}>
-              <h3 style={styles.subtitle}>Остатки</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div className={styles.card}>
+              <h3 className={styles.subtitle}>Остатки</h3>
+              <div className={styles.gridTwoColumns}>
                 <InfoRow label="Екатеринбург" value={formatNumber(product.stocksEkb)} />
                 <InfoRow label="Москва" value={formatNumber(product.stocksMsc)} />
                 <InfoRow label="FBO" value={formatNumber(product.stocksFbo)} />
@@ -247,9 +210,9 @@ function ProductDetail() {
             </div>
 
             {/* Заказы */}
-            <div style={styles.card}>
-              <h3 style={styles.subtitle}>Заказы</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div className={styles.card}>
+              <h3 className={styles.subtitle}>Заказы</h3>
+              <div className={styles.gridTwoColumns}>
                 <InfoRow label="Текущие заказы" value={formatNumber(product.currentOrdersCount)} />
                 <InfoRow label="Предыдущие заказы" value={formatNumber(product.previousOrdersCount)} />
               </div>
@@ -257,18 +220,21 @@ function ProductDetail() {
           </div>
         )}
 
-        {/* Информация о складах */}
-        {activeTab === "stocks" && product.warehouses && (
-          <div style={styles.card}>
-            <h2 style={styles.sectionTitle}>Склады ({product.warehouses.length})</h2>
-            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+        {/* Информация о складах (только если есть локальные данные) */}
+        {activeTab === "stocks" && product && product.warehouses && (
+          <div className={styles.card}>
+            <h2 className={styles.sectionTitle}>Склады ({product.warehouses.length})</h2>
+            <div className={styles.warehouseList}>
               {product.warehouses.map((warehouse, index) => (
-                <div key={index} style={styles.warehouseItem(index)}>
-                  <div style={{ fontWeight: "bold", marginBottom: "5px" }}>{warehouse.warehouse}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", fontSize: "14px" }}>
+                <div 
+                  key={index} 
+                  className={`${styles.warehouseItem} ${index % 2 === 0 ? styles.warehouseItemEven : styles.warehouseItemOdd}`}
+                >
+                  <div className={styles.warehouseName}>{warehouse.warehouse}</div>
+                  <div className={styles.warehouseDetails}>
                     <span>ID: {warehouse.warehouseId}</span>
                     <span>Остаток: <strong>{warehouse.stock}</strong></span>
-                    <span style={{ gridColumn: "1 / -1", fontFamily: "monospace", fontSize: "12px" }}>
+                    <span className={styles.warehouseBarcode}>
                       Штрихкод: {warehouse.barcode}
                     </span>
                   </div>
@@ -278,11 +244,11 @@ function ProductDetail() {
           </div>
         )}
 
-        {/* Финансовая информация */}
-        {activeTab === "financial" && (
-          <div style={styles.card}>
-            <h2 style={styles.sectionTitle}>Финансовая информация</h2>
-            <div style={{ display: "grid", gap: "10px" }}>
+        {/* Финансовая информация (только если есть локальные данные) */}
+        {activeTab === "financial" && product && (
+          <div className={styles.card}>
+            <h2 className={styles.sectionTitle}>Финансовая информация</h2>
+            <div className={styles.gridContainer}>
               <InfoRow label="KP" value={formatNumber(product.kp)} />
               <InfoRow label="DU" value={formatNumber(product.du)} />
               <InfoRow label="KP Fact" value={formatNumber(product.kpFact)} />
@@ -291,10 +257,10 @@ function ProductDetail() {
 
             {/* Дубликаты */}
             {product.duplicates && product.duplicates.length > 0 && (
-              <div style={{ marginTop: "15px" }}>
-                <h3 style={styles.subtitle}>Дубликаты</h3>
+              <div className={styles.duplicatesSection}>
+                <h3 className={styles.subtitle}>Дубликаты</h3>
                 {product.duplicates.map((duplicate, index) => (
-                  <div key={index} style={styles.duplicateItem}>
+                  <div key={index} className={styles.duplicateItem}>
                     nmId: {duplicate.nmId} - {duplicate.cabinet}
                   </div>
                 ))}
@@ -303,8 +269,124 @@ function ProductDetail() {
           </div>
         )}
 
+        {/* WB Информация - показываем всегда если есть WB данные или идет загрузка */}
+        {activeTab === "wb" && (
+          <div>
+            {wbLoading ? (
+              <div className={styles.loadingContainer}>
+                <p className={styles.loadingText}>🔄 Загружаем информацию с Wildberries...</p>
+              </div>
+            ) : wbProduct ? (
+              <div>
+                {/* Карточка с основной информацией */}
+                <div className={styles.card}>
+                  <h2 className={styles.sectionTitle}>Информация с Wildberries</h2>
+                  
+                  <div className={styles.wbHeader}>
+                    <div className={styles.wbBrandInfo}>
+                      <div className={styles.wbBrand}>{wbProduct.brand}</div>
+                      <div className={styles.wbName}>{wbProduct.name}</div>
+                      <div className={styles.wbSubject}>{wbProduct.subject}</div>
+                    </div>
+                    
+                    {/* Цена и скидка */}
+                    <div className={styles.wbPriceSection}>
+                      {wbProduct.discount > 0 ? (
+                        <>
+                          <div className={styles.wbOldPrice}>
+                            {formatPrice(wbProduct.basicPrice)} ₽
+                          </div>
+                          <div className={styles.wbCurrentPrice}>
+                            {formatPrice(wbProduct.productPrice)} ₽
+                          </div>
+                          {/* <div className={styles.wbDiscount}>
+                            -{wbProduct.discount}% ({formatPrice(wbProduct.discountAmount)} ₽)
+                          </div> */}
+                        </>
+                      ) : (
+                        <div className={styles.wbCurrentPrice}>
+                          {formatPrice(wbProduct.productPrice)} ₽
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Рейтинги и отзывы */}
+                  <div className={styles.wbRatings}>
+                    <div className={styles.gridTwoColumns}>
+                      <InfoRow label="Рейтинг товара" value={`${wbProduct.rating}`} />
+                      <InfoRow label="Рейтинг отзывов" value={wbProduct.reviewRating} />
+                      <InfoRow label="Кол-во отзывов" value={formatNumber(wbProduct.feedbacks)} />
+                      <InfoRow label="Рейтинг поставщика" value={`${wbProduct.supplierRating}`} />
+                    </div>
+                  </div>
+
+                  {/* Дополнительная информация */}
+                  <div className={styles.gridTwoColumns}>
+                    <InfoRow label="Поставщик" value={wbProduct.supplier} />
+                    {/* <InfoRow label="Изображений" value={wbProduct.pics} /> */}
+                    <InfoRow label="Объем" value={wbProduct.volume ? `${wbProduct.volume} см³` : "—"} />
+                    <InfoRow label="Вес" value={wbProduct.weight ? `${wbProduct.weight} кг` : "—"} />
+                    {/* <InfoRow label="Доставка" value={wbProduct.time1 ? `${wbProduct.time1}-${wbProduct.time2} дн.` : "—"} /> */}
+                    <InfoRow label="Остаток" value={formatNumber(wbProduct.totalQuantity)} />
+                  </div>
+                </div>
+
+                {/* Склады WB */}
+                {wbProduct.warehouses && wbProduct.warehouses.length > 0 && (
+                  <div className={styles.card}>
+                    <h3 className={styles.subtitle}>Склады Wildberries ({wbProduct.warehouses.length})</h3>
+                    <div className={styles.warehouseList}>
+                      {wbProduct.warehouses.map((warehouse, index) => (
+                        <div 
+                          key={index} 
+                          className={`${styles.warehouseItem} ${index % 2 === 0 ? styles.warehouseItemEven : styles.warehouseItemOdd}`}
+                        >
+                          <div className={styles.warehouseDetails}>
+                            <span>Склад ID: {warehouse.warehouse_id}</span>
+                            <span>Остаток: <strong>{warehouse.quantity}</strong></span>
+                            {/* {warehouse.time1 && (
+                              <span className={styles.deliveryTime}>
+                                Доставка: {warehouse.time1}-{warehouse.time2} дн.
+                              </span>
+                            )} */}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Акции */}
+                {/* {wbProduct.promotions && wbProduct.promotions.length > 0 && (
+                  <div className={styles.card}>
+                    <h3 className={styles.subtitle}>Акции ({wbProduct.promotions.length})</h3>
+                    <div className={styles.promotionsInfo}>
+                      Участвует в {wbProduct.promotions.length} акциях
+                    </div>
+                  </div>
+                )} */}
+              </div>
+            ) : (
+              <div className={styles.card}>
+                <div className={styles.errorContainer}>
+                  <p className={styles.errorText}>
+                    Не удалось загрузить информацию с Wildberries
+                  </p>
+                  <button 
+                    onClick={fetchWbProduct}
+                    className={styles.retryButton}
+                  >
+                    Попробовать снова
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Кнопки действий */}
-        <div style={{ marginTop: "20px" }}>
+        <div className={styles.actions}>
           <button 
             onClick={() => {
               const wbUrl = `https://www.wildberries.ru/catalog/${id}/detail.aspx`;
@@ -314,13 +396,13 @@ function ProductDetail() {
                 window.open(wbUrl, '_blank');
               }
             }}
-            style={styles.primaryButton}
+            className={styles.primaryButton}
           >
             Перейти на Wildberries
           </button>
 
-          <Link to="/" style={{ display: "block", textDecoration: "none" }}>
-            <button style={styles.secondaryButton}>
+          <Link to="/" className={styles.backLink}>
+            <button className={styles.secondaryButton}>
               ← Назад к поиску
             </button>
           </Link>
@@ -330,28 +412,11 @@ function ProductDetail() {
   );
 }
 
-// Компонент для отображения строки информации
 function InfoRow({ label, value }) {
-  const rowStyle = {
-    display: "flex", 
-    justifyContent: "space-between",
-    padding: "4px 0",
-    borderBottom: "1px solid var(--tg-theme-hint-color, #f0f0f0)"
-  };
-
-  const labelStyle = {
-    color: "var(--tg-theme-hint-color, #666666)"
-  };
-
-  const valueStyle = {
-    fontWeight: "500",
-    color: "var(--tg-theme-text-color, #000000)"
-  };
-
   return (
-    <div style={rowStyle}>
-      <span style={labelStyle}>{label}:</span>
-      <span style={valueStyle}>{value || "—"}</span>
+    <div className={styles.infoRow}>
+      <span className={styles.infoRowLabel}>{label}:</span>
+      <span className={styles.infoRowValue}>{value || "—"}</span>
     </div>
   );
 }

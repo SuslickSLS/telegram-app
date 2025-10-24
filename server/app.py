@@ -211,6 +211,104 @@ def local_debug():
     except Exception as e:
         return jsonify({'error': f'Debug error: {str(e)}'}), 500
 
+# server/app.py - добавить этот эндпоинт
+@app.route('/api/wb/product', methods=['GET'])
+def get_wb_product():
+    """
+    Получение данных одного товара с Wildberries API
+    """
+    try:
+        nm_id = request.args.get('nmId')
+        if not nm_id:
+            return jsonify({'error': 'nmId parameter is required'}), 400
+        
+        print(f"🔍 Запрос товара {nm_id} с WB API")
+        
+        # URL Wildberries API для одного товара
+        wb_url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-5818883&spp=30&ab_testing=false&lang=ru&nm={nm_id}"
+        
+        response = requests.get(
+            wb_url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+            },
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return jsonify({
+                'error': f'WB API вернул статус {response.status_code}',
+                'status_code': response.status_code
+            }), 502
+        
+        data = response.json()
+        
+        if not data.get('products') or len(data['products']) == 0:
+            return jsonify({'error': 'Товар не найден'}), 404
+        
+        product = data['products'][0]
+        
+        # Получаем информацию о цене и складах
+        sizes = product.get('sizes', [])
+        price_info = sizes[0].get('price', {}) if sizes else {}
+        stocks = sizes[0].get('stocks', []) if sizes else []
+        
+        basic_price = price_info.get('basic', 0) // 100
+        product_price = price_info.get('product', 0) // 100
+        discount = round((1 - product_price / basic_price) * 100, 1) if basic_price > 0 else 0
+        
+        # Формируем информацию о складах
+        warehouses = []
+        for stock in stocks:
+            warehouses.append({
+                'warehouse_id': stock.get('wh'),
+                'quantity': stock.get('qty', 0),
+                'time1': stock.get('time1'),
+                'time2': stock.get('time2')
+            })
+        
+        result = {
+            'id': product.get('id'),
+            'brand': product.get('brand'),
+            'name': product.get('name'),
+            'rating': product.get('rating'),
+            'reviewRating': product.get('reviewRating'),
+            'feedbacks': product.get('feedbacks'),
+            'totalQuantity': product.get('totalQuantity'),
+            'basicPrice': basic_price,
+            'productPrice': product_price,
+            'discount': discount,
+            'discountAmount': basic_price - product_price if basic_price > product_price else 0,
+            'supplier': product.get('supplier'),
+            'supplierRating': product.get('supplierRating'),
+            'pics': product.get('pics', 0),
+            'subject': product.get('entity'),
+            'subjectId': product.get('subjectId'),
+            'volume': product.get('volume'),
+            'weight': product.get('weight'),
+            'time1': product.get('time1'),
+            'time2': product.get('time2'),
+            'promotions': product.get('promotions', []),
+            'warehouses': warehouses,
+            'sizesCount': len(sizes),
+            'hasStocks': len(stocks) > 0
+        }
+        
+        print(f"✅ Получен товар {product.get('name')} с WB API")
+        
+        return jsonify({
+            'product': result,
+            '_metadata': {
+                'source': 'wildberries_api',
+                'status': 'success'
+            }
+        })
+        
+    except Exception as e:
+        print(f"💥 Ошибка: {e}")
+        return jsonify({'error': f'Ошибка при запросе к WB API: {str(e)}'}), 500
+
 @app.route('/api/product/<int:product_id>', methods=['GET'])
 def get_product(product_id):
     try:
