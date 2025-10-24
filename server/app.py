@@ -12,7 +12,7 @@ app = Flask(__name__)
 CORS(app)
 
 ALLOWED_USERS = {
-    5429222882: {"username": "admin", "name": "Администратор", "role": "admin"},
+    5429222882: {"username": "Suslick", "name": "SuslickSLS", "role": "admin"},
     987654321: {"username": "manager", "name": "Менеджер", "role": "manager"},
 }
 

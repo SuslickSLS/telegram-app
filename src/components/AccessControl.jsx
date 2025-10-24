@@ -29,7 +29,7 @@ function AccessControl({ children }) {
       }
 
       // Отправляем данные на бэкенд для проверки
-      const response = await fetch('https://your-railway-app.railway.app/api/check-access', {
+      const response = await fetch('https://my-telegram-app-production.up.railway.app/api/check-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
